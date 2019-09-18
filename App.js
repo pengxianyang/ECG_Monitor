@@ -227,10 +227,6 @@ class DetailsScreen extends React.Component {
 class BLEModule extends React.Component {
     constructor(props){
         super(props)
-        this.props.navigationOptions={
-            header:10,
-
-        }
     }
 
     render() {

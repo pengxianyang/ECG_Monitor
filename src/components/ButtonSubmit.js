@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 
 import spinner from '../images/loading.gif';
-import {Login} from '../../App.js';
 
 const DEVICE_WIDTH = Dimensions.get('window').width;
 const DEVICE_HEIGHT = Dimensions.get('window').height;
@@ -48,8 +47,19 @@ export default class ButtonSubmit extends Component {
       //this._onGrow();
       console.log('the input username is '+this.props.usr);
       console.log('the input password is '+this.props.pwd);
+      let result=this.props.onUplord(this.props.usr,this.props.pwd);
+
+      // if(result==1){
+      //     this.props.onPress();
+      // }
+      // else{
+      //     Alert.alert('用户名或密码错误')
+      // }
+
       this.props.onPress();
     }, 1000);
+
+
 
 
   }
