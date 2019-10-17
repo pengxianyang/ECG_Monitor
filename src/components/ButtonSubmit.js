@@ -56,11 +56,8 @@ export default class ButtonSubmit extends Component {
       //     Alert.alert('用户名或密码错误')
       // }
 
-      this.props.onPress();
-    }, 1000);
-
-
-
+      this.props.onPress(this.props.usr);
+    }, 0);
 
   }
 

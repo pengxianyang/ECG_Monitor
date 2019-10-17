@@ -58,6 +58,8 @@ export default class LoginScreen extends Component {
             .catch((error) => {
                 console.log("错误信息为：" + error);
             });
+
+
     }
 
   render() {

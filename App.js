@@ -23,179 +23,152 @@ import {
 } from 'react-navigation-stack';
 import LoginScreen from './src/components/LoginScreen';
 import BluetoothScreen from './src/components/BluetoothScreen'
+import DataBase from './src/components/DataBase';
+import UploadScreen from './src/components/UpLoadScreen';
 
 
 class HomeScreen extends React.Component {
+    constructor(props)
+    {
+        super(props);
+        this.state
 
-    _onPressButton() {
-        var x = 100;
-        var s = x.toString();
-
-        Alert.alert(s);
     }
 
-    state = {
-        text: '',
-        num: 0,
+    componentDidMount(): void {
+
     }
 
     render() {
+        const {
+            navigation
+        } = this.props;
+        const username = navigation.getParam('username', "Peng Xianyang");
         return (
-            <View style={styles.container}>
-                <View style={styles.buttonContainer}>
-                    <Button
-                        onPress={() => this.props.navigation.navigate('Details',
-                            {
-                                itemid:100,//页面之间传递的参数
-                                text:this.state.Text,
-                                otherParam:'this is other param',
-                            })
-                        }
-                        title="go to detail page"
-                    />
+            <View style={{flex: 1,backgroundColor:'indigo'}}>
+                <StatusBar backgroundColor="#ff0000"
+                           translucent={true}
+                           hidden={true}
+                           animated={true}/>
+                <View style={{flex: 1, flexDirection:'row'}}>
+                    <View style={{flex: 1, backgroundColor: 'indigo',marginLeft:0,marginEnd:10}}>
+                        <Text style={{fontSize:30,color:'gold',marginLeft:10,marginTop:30,fontWeight: 'bold'}}>Hi,{username}</Text>
+                        <View style={{backgroundColor: 'thistle',marginRight:200,marginTop:10,paddingRight:20,paddingTop:5,paddingBottom:10,borderBottomEndRadius:40,borderTopEndRadius:40,}}>
+                            <Text style={{fontSize:20,marginLeft:10,color:'indigo'}}>{username}</Text>
+                        </View>
+                    </View>
                 </View>
-                <View style={styles.buttonContainer}>
-                    <Button
-                        onPress={() => this.props.navigation.navigate('NetWorkTest',
-                            {
-                                itemid:101,//页面之间传递的参数
-                                url:'this is other param',
-                            })
-                        }
-                        title="go to network test"
-                    />
-                </View>
-                <View style={styles.buttonContainer}>
-                    <Button
-                        onPress={() => this.props.navigation.navigate('BLEModule',
-                            {
-                                itemid:102,//页面之间传递的参数
-                                url:'this is other param',
-                            })
-                        }
-                        title="go to ble test"
-                    />
-                </View>
-                <View style={styles.alternativeLayoutButtonContainer}>
-                    <Button
-                        onPress={this._onPressButton}
-                        title="left button"
-                        color="#FF00FF"
-                    />
-                    <Button
-                        onPress={this._onPressButton}
-                        title="right button"
-                        color="#FF00FF"
-                    />
-                </View>
+                <View style={{flex: 1, flexDirection:'row',marginTop:10}}>
+                    <View style={{flex: 1, flexDirection:'row',backgroundColor: '#DA70D6AA',marginLeft:10,marginEnd:10,borderRadius:5.0}} >
+                        <View style={{flex:3,backgroundColor:'red',}}>
+                            <Text>RECORD SITUATIONS</Text>
+                            <Text>{'TOTAL '}</Text>
+                            <Text>RECORD SITUATIONS</Text>
+                        </View>
+                        <View style={{flex:1.5,backgroundColor:'yellow'}}>
 
+                        </View>
+                    </View>
+                </View>
+                <View style={{flex: 1, flexDirection:'row',marginTop:20}}>
+                    <View style={{flex: 1, marginLeft:10,marginEnd:10}}>
+                        <TouchableOpacity
+                            style={{ flex:1, backgroundColor:'plum',margin:5,padding:10,shadowOffset:{width:10,height:10},shadowColor:'black',shadowOpacity:0.25,shadowRadius:3.84,elevation: 5,borderRadius:8.0}}
+                            onPress={() => this.props.navigation.navigate('BLEModule',
+                                {
+                                    itemid:102,//页面之间传递的参数
+                                    url:'this is other param',
+                                })
+                            }
+                        >
+                            <View style={{flex:1,}}>
+                                <Image style={{height:60,width:60,resizeMode: 'contain',}} source={require('./res/Image/logo_measure.png')}/>
+                                <Text style={{fontSize:20,color:'white',marginTop:30}}>ECG Measuring</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                    <View style={{flex: 1,marginRight:10,marginEnd:10}}>
+                        <TouchableOpacity
+                            style={{ flex:1, backgroundColor:'darkviolet',margin:5,padding:10,shadowOffset:{width:10,height:10},shadowColor:'black',shadowOpacity:0.25,shadowRadius:3.84,elevation: 5,borderRadius:8.0}}
+                            onPress={() => this.props.navigation.navigate('Details',
+                                {
+                                    itemid:100,//页面之间传递的参数
+                                    otherParam:'this is other param',
+                                })
+                            }
+                        >
+                            <View style={{flex:1,}}>
+                                <Image style={{height:60,width:60,resizeMode: 'contain',}} source={require('./res/Image/logo_database.png')}/>
+                                <Text style={{fontSize:20,color:'white',marginTop:30}}>Data Base</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+                <View style={{flex: 1, flexDirection:'row',marginTop:10,marginBottom: 20}}>
+                    <View style={{flex: 1,marginLeft:10,marginEnd:10}}>
+                        <TouchableOpacity
+                            style={{ flex:1, backgroundColor:'fuchsia',margin:5,padding:10,shadowOffset:{width:10,height:10},shadowColor:'black',shadowOpacity:0.25,shadowRadius:3.84,elevation: 5,borderRadius:8.0}}
+                            onPress={() => this.props.navigation.navigate('UploadModule',
+                                {
+                                    username:username,
+                                })
+                            }
+                        >
+                            <View style={{flex:1,}}>
+                                <Image style={{height:60,width:60,resizeMode: 'contain',}} source={require('./res/Image/logo_uplord.png')}/>
+                                <Text style={{fontSize:20,color:'white',marginTop:30}}>Uplord</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                    <View style={{flex: 1,marginRight:10,marginEnd:10}} >
+                        <TouchableOpacity
+                            style={{ flex:1, backgroundColor:'deeppink',margin:5,padding:10,shadowOffset:{width:10,height:10},shadowColor:'black',shadowOpacity:0.25,shadowRadius:3.84,elevation: 5,borderRadius:8.0}}
+                            onPress={()=>console.log('you press button1')}
+                        >
+                            <View style={{flex:1,}}>
+                                <Image style={{height:60,width:60,resizeMode: 'contain',}} source={require('./res/Image/logo_medicalorder.png')}/>
+                                <Text style={{fontSize:20,color:'white',marginTop:30}}>Medical Order</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </View>
         );
     }
 }
 
-class NetWorkTest extends React.Component {
-
-    state = {
-        userlocation: "unknow userlocation",
-        userip: "0000",
-        loaded: false,
-    }
+class UploadModule extends React.Component {
 
     //生命周期开始的时候调用一次，此后不再调用
     componentDidMount() {
-        this.getFetch();
-    }
 
-    getFetch() {
-        //'http://ip-api.com/json'
-        //http://106.54.62.64:8080/test/entity
-        return fetch('http://ip-api.com/json')
-            .then(function(response) {
-                console.log(response.status);
-                return response.json();
-            })
-            .then(function(data) {
-                //Alert.alert(data.country);
-                console.log(data.country);
-                this.setState({
-                    userip: data.query,
-                    userlocation: data.country,
-                    company: data.org,
-                    loaded: true,
-                    age:data.age,
-                    height:data.height,
-                });
-                return data;
-            }.bind(this))
-            .catch((error) => {
-                console.error(error);
-            });
     }
 
     constructor(props) {
         super(props);
         this.state = {
-            userlocation: "unknow userlocation",
-            userip: "0000",
-            company: "unknow company",
-            loaded: false,
+            username: "unknow username",
         }
-        this.getFetch = this.getFetch.bind(this);
     }
 
     render() {
-        if (!this.state.loaded) {
-            return this.randerLoadingView();
-        }
-        return this.renderdone();
-    }
-
-    randerLoadingView() {
+        const {
+            navigation
+        } = this.props;
+        const username = navigation.getParam('username', "default username");
         return (
-            <View style={styles.ImageContainer}>
-                <Image
-                    source={require('./res/Image/loading.gif')}
-                    style={styles.simpleImage}
+            <View style={styles.container}>
+                <UploadScreen
+                    username={username}
                 />
             </View>
         );
     }
 
-    renderdone() {
-        const {
-            navigation
-        } = this.props;
-        const itemID = navigation.getParam('itemid', 'No-id');
-        const url = navigation.getParam('url', 'www.baidu.com');
 
-        return (
-            <View style={styles.container}>
-                <Text style={styles.biggerfont}>{this.state.userlocation}</Text>
-                <Text style={styles.biggerfont}>{this.state.userip}</Text>
-                <Text style={styles.biggerfont}>{this.state.company}</Text>
-                <Text style={styles.biggerfont}>{this.state.age}</Text>
-                <Text style={styles.biggerfont}>{this.state.height}</Text>
-                <View style={styles.buttonContainer}>
-                    <Button
-                        title="Fetch"
-                        onPress={()=>{
-                            this.getFetch();
-                        }}
-                    />
-                </View>
-                <View style={styles.buttonContainer}>
-                    <Button
-                        title="Back Home"
-                        onPress={() => this.props.navigation.navigate('Home')}
-                    />
-                </View>
-            </View>
-        );
-    }
 }
 
-class DetailsScreen extends React.Component {
+class DataBaseModule extends React.Component {
     render() {
         const {
             navigation
@@ -204,21 +177,11 @@ class DetailsScreen extends React.Component {
         const otherParam = navigation.getParam('otherParam', "No-otherParam");
         return (
             <View style={styles.container}>
-                <Text style={styles.biggerfont}>"Details Screen"</Text>
-                <Text style={styles.biggerfont}>{JSON.stringify(itemID)}</Text>
-                <Text style={styles.biggerfont}>{JSON.stringify(otherParam)}</Text>
-                <View style={styles.buttonContainer}>
-                    <Button
-                        title="Go back to home"
-                        onPress={() => this.props.navigation.navigate('Home')}
-                    />
-                </View>
-                <View style={styles.buttonContainer}>
-                    <Button
-                        title="Go back"
-                        onPress={() => this.props.navigation.goBack()}
-                    />
-                </View>
+                <StatusBar backgroundColor="#ff0000"
+                           translucent={true}
+                           hidden={true}
+                           animated={true}/>
+                <DataBase/>
             </View>
         );
     }
@@ -232,6 +195,10 @@ class BLEModule extends React.Component {
     render() {
         return (
             <View style={styles.container}>
+                <StatusBar backgroundColor="#ff0000"
+                           translucent={true}
+                           hidden={true}
+                           animated={true}/>
                 <BluetoothScreen/>
             </View>
         );
@@ -245,19 +212,22 @@ class Login extends React.Component {
         this.state={
         }
 
+
+
     }
 
     render() {
         return (
             <View style={styles.container}>
-                <StatusBar translucent={false} backgroundColor='#DA70D6' barStyle="dark-content" />
+                <StatusBar backgroundColor="#ff0000"
+                           translucent={true}
+                           hidden={true}
+                           animated={true}/>
                 <LoginScreen
                     pre='111'
-                    onPress={() => this.props.navigation.navigate('Home',
+                    onPress={(usr) => this.props.navigation.navigate('Home',
                     {
-                        itemid:100,//页面之间传递的参数
-                        text:this.state.Text,
-                        otherParam:'this is other param',
+                        username:usr,
                     })}
                 />
             </View>
@@ -274,15 +244,43 @@ class Login extends React.Component {
 }
 
 const AppNavigator = createStackNavigator({
-    Home: HomeScreen,
-    Details: DetailsScreen,
-    NetWorkTest: NetWorkTest,
+    Home: {
+        screen:HomeScreen,
+        navigationOptions:{
+            header:null,
+        },
+    },
+    Details: {
+        screen:DataBaseModule,
+        navigationOptions:{
+            headerTitle: 'DataBase',
+            headerStyle: {
+                backgroundColor: 'indigo',
+            },
+            headerTintColor:'white',
+            headerTitleStyle: {
+                fontWeight: 'bold',
+            },
+        },
+    },
+    UploadModule: {
+        screen:UploadModule,
+        navigationOptions: {
+            headerTitle: 'Upload',
+            headerStyle: {
+                backgroundColor: 'indigo',
+            },
+            headerTintColor:'white',
+            headerTitleStyle: {
+                fontWeight: 'bold',
+            },
+        }
+    },
     BLEModule: {
         screen:BLEModule,
         navigationOptions:{
             headerTitle:'BLE Module',
             headerStyle:{
-                marginTop:35,
             }
         }
     },
@@ -312,6 +310,17 @@ const styles = StyleSheet.create({
     },
     buttonContainer: {
         margin: 20,
+    },
+    HomeButton: {
+        flex: 1,
+        width: 200,
+        height: 200,
+        marginLeft: 25,
+    },
+    RowButtonContainer: {
+        flex: 1,
+        width: 500,
+        height: 200,
     },
     alternativeLayoutButtonContainer: {
         margin: 20,

@@ -1,6 +1,8 @@
 import React, {Component} from 'react';
 import {Alert, FlatList, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import BleModule from './BleModule';
+import {AreaChart, Grid, LineChart} from 'react-native-svg-charts';
+import * as shape from 'd3-shape'
 
 global.BluetoothManager = new BleModule();
 
@@ -18,14 +20,60 @@ export default class BluetoothScreen extends Component{
             receiveData:'',
             readData:'',
             isMonitoring:false,
+            clear:false,
+            test_data:[50, 10, 40, 95, -4, -24, 85, 91, 35, 53, -53, 24, 50, -20, -80],
+            formData:[0,0,0],
+            isCharging:0,
         }
         this.bluetoothReceiveData = [];  //蓝牙接收的数据缓存
+        this.formDataBuffer = [];
+        this.writeBuffer='';
         this.deviceMap = new Map();
+        this.date=new Date().getTime();
 
-        let fso=new ActiveXObject("Scripting.FileSystemObject");
-        this.state.file = fso.createtextfile("./bluetoothRecord.txt",true);
+        this.RNFS = require('react-native-fs');
+        this.filename= 'ECG_record_'+this.date+'.txt';
+        this.path = this.RNFS.ExternalStorageDirectoryPath + '/ECG/'+this.filename;
 
 
+
+        //console.log(path);
+        this.writeFile(this.date+'\n',this.path);
+    }
+
+    writeFile(data,path)
+    {
+        this.RNFS.writeFile(path, data, 'utf8')
+            .then((success) => {
+                console.log('FILE WRITTEN!');
+            })
+            .catch((err) => {
+                console.log(err.message);
+            });
+    }
+
+    appendFile(data,path)
+    {
+        this.RNFS.appendFile(path, data, 'utf8')
+            .then((success) => {
+                console.log(data.length+' CHAR HAVE '+' APPEND!');
+                this.writeBuffer='';
+            })
+            .catch((err) => {
+                console.log(err.message);
+            });
+    }
+
+    readFile(path)
+    {
+        this.RNFS.readFile(path, 'utf8')
+            .then((contents)=>{
+                this.data=contents;
+                console.log(this.data);
+            })
+            .catch((err)=>{
+                console.log(err.message,err.code);
+            });
     }
 
     componentDidMount(){
@@ -106,11 +154,79 @@ export default class BluetoothScreen extends Component{
 
     //接收到新数据
     handleUpdateValue=(data)=>{
+        if(!this.state.isMonitoring) return;
         //ios接收到的是小写的16进制，android接收的是大写的16进制，统一转化为大写16进制
         let value = data.value;
-        this.bluetoothReceiveData.push(value);
-        console.log('BluetoothUpdateValue', value);
-        this.setState({receiveData:this.bluetoothReceiveData.join('\n')})
+        //this.bluetoothReceiveData.push(value);
+        //this.appendFile(this.bluetoothReceiveData,this.path);
+        //this.appendFile('11111 ',this.path);
+
+        switch(value[2]){
+            case 1:
+                //charing mode v[0]-v[8]
+                console.log('charging!');
+                if(value[3]==0)
+                    this.setState({isCharging:1});
+                else if(value[3]==1)
+                    this.setState({isCharging:0});
+
+                let uint16=(value[5] << 8) | value[4];
+                //console.log(uint16);
+                break;
+            case 2:
+                //running mode v[0]-v[19] * 2
+                //console.log('receive running package');
+                for(let i=3;i<19;i+=2)
+                {
+                    let uint16=(value[i] << 8) + value[i+1];
+                    if(uint16!=undefined)
+                    {
+                        this.formDataBuffer.push(uint16);
+                        //this.setState({formData:this.formDataBuffer});
+                        //this.appendFile((uint16+" "),this.path);
+                        this.writeBuffer+=(uint16+' ');
+                    }
+                }
+
+                break;
+            case 3:
+                //console.log('receive battery package');
+                //battery package v[0]-v[19]
+                break;
+            default:
+                for(let i=1;i<15;i+=2)
+                {
+                    let uint16=(value[i] << 8) + value[i+1];
+                    if(uint16!=undefined)
+                    {
+                        this.formDataBuffer.push(uint16);
+                        //this.setState({formData:this.formDataBuffer});
+                        //this.appendFile((uint16+" "),this.path);
+                        this.writeBuffer+=(uint16+' ');
+                    }
+                }
+        }
+
+        if(this.formDataBuffer.length>1000)
+        {
+            //this.formDataBuffer.splice(0, 17);
+            this.setState({formData:this.formDataBuffer});
+            this.formDataBuffer=[];
+            console.log('this file\'s length is '+this.writeBuffer.length);
+            this.appendFile(this.writeBuffer,this.path);
+        }
+
+
+
+        // if(this.state.receiveData.length>1000)
+        // {
+        //     this.bluetoothReceiveData=[];
+        //     this.setState({receiveData:''});
+        // }
+
+
+        //this.setState({formData:this.formDataBuffer});
+        //this.setState({receiveData:this.bluetoothReceiveData.join('\n')})
     }
 
     connect(item){
@@ -185,7 +301,6 @@ export default class BluetoothScreen extends Component{
         }
     }
 
-
     alert(text){
         Alert.alert('提示',text,[{ text:'确定',onPress:()=>{ } }]);
     }
@@ -246,25 +361,45 @@ export default class BluetoothScreen extends Component{
                 this.setState({isMonitoring:false});
                 this.alert('开启失败');
             })
+
+    }
+
+    disnotify=(index)=>{
+        console.log('trying disnotify');
+        this.setState({isMonitoring:false});
+        this.setState({
+            receiveData:'',
+        });
+        this.bluetoothReceiveData=[];
+        try{
+            BluetoothManager.stopNotification(index);
+        } catch (e) {
+            console.log(e);
+        }
+
+
     }
 
     renderItem=(item)=>{
         let data = item.item;
-        return(
-            <TouchableOpacity
-                activeOpacity={0.7}
-                disabled={this.state.isConnected?true:false}
-                onPress={()=>{this.connect(item)}}
-                style={styles.item}>
+        if(!data.name) return null;
+        else {
+            return(
+                <TouchableOpacity
+                    activeOpacity={0.7}
+                    disabled={this.state.isConnected?true:false}
+                    onPress={()=>{this.connect(item)}}
+                    style={styles.item}>
 
-                <View style={{flexDirection:'row',}}>
-                    <Text style={{color:'black'}}>{data.name?data.name:''}</Text>
-                    <Text style={{marginLeft:50,color:"red"}}>{data.isConnecting?'连接中...':''}</Text>
-                </View>
-                <Text>{data.id}</Text>
+                    <View style={{flexDirection:'row',}}>
+                        <Text style={{color:'black'}}>{data.name?data.name:''}</Text>
+                        <Text style={{marginLeft:50,color:"red"}}>{data.isConnecting?'连接中...':''}</Text>
+                    </View>
+                    <Text>{data.id}</Text>
 
-            </TouchableOpacity>
-        );
+                </TouchableOpacity>
+            );
+        }
     }
 
     renderHeader=()=>{
@@ -275,13 +410,6 @@ export default class BluetoothScreen extends Component{
                     style={[styles.buttonView,{marginHorizontal:10,marginVertical:10,height:40,alignItems:'center'}]}
                     onPress={this.state.isConnected?this.disconnect.bind(this):this.scan.bind(this)}>
                     <Text style={styles.buttonText}>{this.state.scaning?'正在搜索中':this.state.isConnected?'断开蓝牙':'搜索蓝牙'}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={[styles.buttonView,{marginHorizontal:10,marginVertical:10,height:40,alignItems:'center'}]}
-                    onPress={this.state.isConnected?this.disconnect.bind(this):this.scan.bind(this)}>
-                    <Text style={styles.buttonText}>{this.state.reading?'刷新数据中':'刷新数据'}</Text>
                 </TouchableOpacity>
 
                 <Text style={{marginLeft:10,marginTop:10}}>
@@ -295,14 +423,35 @@ export default class BluetoothScreen extends Component{
         return(
             <View style={{marginBottom:30}}>
                 {this.state.isConnected?
-                    <View>
-                        {this.renderWriteView('写数据(write)：','发送',BluetoothManager.writeWithResponseCharacteristicUUID,this.write,this.state.writeData)}
-                        {this.renderWriteView('写数据(writeWithoutResponse)：','发送',BluetoothManager.writeWithoutResponseCharacteristicUUID,this.writeWithoutResponse,this.state.writeData)}
-                        {this.renderReceiveView('读取的数据：','读取',BluetoothManager.readCharacteristicUUID,this.read,this.state.readData)}
-                        {this.renderReceiveView('通知监听接收的数据：'+`${this.state.isMonitoring?'监听已开启':'监听未开启'}`,'开启通知',BluetoothManager.nofityCharacteristicUUID,this.notify,this.state.receiveData)}
-
+                    <View style={{
+                        flex: 1,
+                        justifyContent: 'center',
+                    }}>
+                        <View>
+                            <Text>{this.state.isCharging==0?'已充满':'正在充电'}</Text>
+                        </View>
+                        {/*<AreaChart*/}
+                            {/*style={{ height: 200, margin:10}}*/}
+                            {/*data={this.state.formData}*/}
+                            {/*contentInset={{ top: 30, bottom: 30 }}*/}
+                            {/*curve={shape.curveNatural}*/}
+                            {/*svg={{ fill: 'rgba(134, 65, 244, 0.8)' }}*/}
+                        {/*>*/}
+                            {/*<Grid />*/}
+                        {/*</AreaChart>*/}
+                        <LineChart
+                            style={{ height:500,margin:10 }}
+                            data={this.state.formData}
+                            svg={{ stroke: 'rgba(134, 65, 244, 0.8)' }}
+                            contentInset={{ top: 30, bottom: 30 }}
+                        >
+                            <Grid />
+                        </LineChart>
+                        {this.renderReceiveView('通知监听接收的数据：'+`${this.state.isMonitoring?'监听已开启':'监听未开启'}`,`${this.state.isMonitoring?'关闭监听':'开启监听'}`,BluetoothManager.nofityCharacteristicUUID,this.state.isMonitoring?this.disnotify:this.notify,this.state.isMonitoring?'Monitoring':'Not Monitoring')}
                     </View>
-                    : <View></View>
+
+                    :
+                    <View></View>
                 }
             </View>
         )
@@ -312,6 +461,7 @@ export default class BluetoothScreen extends Component{
         if(characteristics.length == 0){
             return;
         }
+
         return(
             <View style={{marginHorizontal:10,marginTop:30}}>
                 <Text style={{color:'black',marginTop:5}}>{label}</Text>
@@ -333,40 +483,8 @@ export default class BluetoothScreen extends Component{
         )
     }
 
-    renderWriteView=(label,buttonText,characteristics,onPress,state)=>{
-        if(characteristics.length == 0){
-            return;
-        }
-        return(
-            <View style={{marginHorizontal:10,marginTop:30}} behavior='padding'>
-                <Text style={{color:'black'}}>{label}</Text>
-                <Text style={styles.content}>
-                    {this.state.writeData}
-                </Text>
-                {characteristics.map((item,index)=>{
-                    return(
-                        <TouchableOpacity
-                            key={index}
-                            activeOpacity={0.7}
-                            style={styles.buttonView}
-                            onPress={()=>{onPress(index)}}>
-                            <Text style={styles.buttonText}>{buttonText} ({item})</Text>
-                        </TouchableOpacity>
-                    )
-                })}
-                <TextInput
-                    style={[styles.textInput]}
-                    value={this.state.text}
-                    placeholder='请输入消息'
-                    onChangeText={(text)=>{
-                        this.setState({text:text});
-                    }}
-                />
-            </View>
-        )
-    }
-
     render () {
+
         return (
             <View style={styles.container}>
                 <FlatList
