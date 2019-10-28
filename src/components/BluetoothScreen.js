@@ -1,7 +1,7 @@
 import React, {Component} from 'react';
 import {Alert, FlatList, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import BleModule from './BleModule';
-import {AreaChart, Grid, LineChart} from 'react-native-svg-charts';
+import {AreaChart, Grid, LineChart, PieChart, YAxis} from 'react-native-svg-charts';
 import * as shape from 'd3-shape'
 
 global.BluetoothManager = new BleModule();
@@ -23,17 +23,29 @@ export default class BluetoothScreen extends Component{
             clear:false,
             test_data:[50, 10, 40, 95, -4, -24, 85, 91, 35, 53, -53, 24, 50, -20, -80],
             formData:[0,0,0],
+            heartRateData:[0,0,0],
             isCharging:0,
         }
         this.bluetoothReceiveData = [];  //蓝牙接收的数据缓存
         this.formDataBuffer = [];
+        this.formDataYAxis=[-100000,-5000,0,5000,100000];
+        this.packageFromBuffer=[];
         this.writeBuffer='';
+        this.packageWriteBuffer='';
+        this.signalQulity=true;
         this.deviceMap = new Map();
         this.date=new Date().getTime();
+        this.vaildDataNum=0;
+        this.unvaildDataNum=0;
+        this.breakDigit=0;
+
+        this.heartRateBuffer=[];
+        this.heartRateYAxis=[0,20,40,60,80,100,120,140];
 
         this.RNFS = require('react-native-fs');
         this.filename= 'ECG_record_'+this.date+'.txt';
         this.path = this.RNFS.ExternalStorageDirectoryPath + '/ECG/'+this.filename;
+
 
 
 
@@ -56,7 +68,7 @@ export default class BluetoothScreen extends Component{
     {
         this.RNFS.appendFile(path, data, 'utf8')
             .then((success) => {
-                console.log(data.length+' CHAR HAVE '+' APPEND!');
+                //console.log(data.length+' CHAR HAVE '+' APPEND!');
                 this.writeBuffer='';
             })
             .catch((err) => {
@@ -157,76 +169,100 @@ export default class BluetoothScreen extends Component{
         if(!this.state.isMonitoring) return;
         //ios接收到的是小写的16进制，android接收的是大写的16进制，统一转化为大写16进制
         let value = data.value;
-        //this.bluetoothReceiveData.push(value);
-        //this.appendFile(this.bluetoothReceiveData,this.path);
-        //this.appendFile('11111 ',this.path);
 
         switch(value[2]){
             case 1:
                 //charing mode v[0]-v[8]
-                console.log('charging!');
+                //console.log('charging!');
                 if(value[3]==0)
                     this.setState({isCharging:1});
                 else if(value[3]==1)
                     this.setState({isCharging:0});
 
-                let uint16=(value[5] << 8) | value[4];
-                //console.log(uint16);
+                let uint16=(value[4] << 8) | value[5];
+                console.log("charging state is: "+value[3]+" ADC reading: "+uint16);
                 break;
             case 2:
                 //running mode v[0]-v[19] * 2
                 //console.log('receive running package');
                 for(let i=3;i<19;i+=2)
                 {
-                    let uint16=(value[i] << 8) + value[i+1];
+                    //let uint16=(value[i] << 8) + value[i+1];
+                    let uint16=(((value[i] & 0xFF) << 8) | (value[i+1] & 0xFF));
                     if(uint16!=undefined)
                     {
-                        this.formDataBuffer.push(uint16);
-                        //this.setState({formData:this.formDataBuffer});
-                        //this.appendFile((uint16+" "),this.path);
-                        this.writeBuffer+=(uint16+' ');
+                        // this.formDataBuffer.push(uint16);
+                        // this.writeBuffer+=(uint16+' ');
+                        this.packageWriteBuffer+=(uint16+' ');
+                        this.packageFromBuffer.push(uint16);
                     }
                 }
+                this.breakDigit=value[19];
+                //this.packageFromBuffer.push((value[19] & 0xFF) << 8);
 
                 break;
             case 3:
-                //console.log('receive battery package');
                 //battery package v[0]-v[19]
+
+                if(value[6]<100)
+                    this.signalQulity=false;
+                else
+                    this.signalQulity=true;
+
+                let batt=(value[3] << 8) | value[4];
+                console.log("heart rate: "+value[5]+" signal quality: "+value[6]+"battery: "+batt);
+
+                if(this.signalQulity==true)
+                {
+                    this.heartRateBuffer.push(value[5]);
+                    this.setState({heartRateData:this.heartRateBuffer});
+                }
+
                 break;
             default:
+                let t=(((this.breakDigit & 0xFF) << 8) | (value[0] & 0xFF))
+                this.packageWriteBuffer+=(t+' ');
+                this.packageFromBuffer.push(t);
                 for(let i=1;i<15;i+=2)
                 {
-                    let uint16=(value[i] << 8) + value[i+1];
+                    //let uint16=(value[i] << 8) + value[i+1];
+                    let uint16=(((value[i] & 0xFF) << 8) | (value[i+1] & 0xFF));
                     if(uint16!=undefined)
                     {
-                        this.formDataBuffer.push(uint16);
-                        //this.setState({formData:this.formDataBuffer});
-                        //this.appendFile((uint16+" "),this.path);
-                        this.writeBuffer+=(uint16+' ');
+                        // this.formDataBuffer.push(uint16);
+                        // this.writeBuffer+=(uint16+' ');
+                        this.packageWriteBuffer+=(uint16+' ');
+                        this.packageFromBuffer.push(uint16);
                     }
                 }
+
+                //check error
+                if(value[15]==0&&value[16]==0&&this.signalQulity==true)
+                {
+                    //this.vaildDataNum++;
+                    //console.log('no error '+this.formDataBuffer.length+" "+this.writeBuffer.length+" "+this.packageFromBuffer.length);
+                    this.formDataBuffer.push.apply(this.formDataBuffer, this.packageFromBuffer);
+                    this.writeBuffer+=this.packageWriteBuffer;
+                }
+
+                this.packageWriteBuffer="";
+                this.packageFromBuffer=[];
         }
 
         if(this.formDataBuffer.length>1000)
         {
-            //this.formDataBuffer.splice(0, 17);
             this.setState({formData:this.formDataBuffer});
             this.formDataBuffer=[];
-            console.log('this file\'s length is '+this.writeBuffer.length);
+            //console.log('this file\'s length is '+this.writeBuffer.length);
             this.appendFile(this.writeBuffer,this.path);
         }
 
+        if(this.heartRateBuffer.length>60)
+        {
+            this.heartRateBuffer=[];
+            this.setState({heartRateData:this.heartRateBuffer});
+        }
 
-
-        // if(this.state.receiveData.length>1000)
-        // {
-        //     this.bluetoothReceiveData=[];
-        //     this.setState({receiveData:''});
-        // }
-
-
-        //this.setState({formData:this.formDataBuffer});
-        //this.setState({receiveData:this.bluetoothReceiveData.join('\n')})
     }
 
     connect(item){
@@ -385,26 +421,28 @@ export default class BluetoothScreen extends Component{
         if(!data.name) return null;
         else {
             return(
-                <TouchableOpacity
-                    activeOpacity={0.7}
-                    disabled={this.state.isConnected?true:false}
-                    onPress={()=>{this.connect(item)}}
-                    style={styles.item}>
+                <View style={{backgroundColor:'white'}}>
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        disabled={this.state.isConnected?true:false}
+                        onPress={()=>{this.connect(item)}}
+                        style={styles.item}>
 
-                    <View style={{flexDirection:'row',}}>
-                        <Text style={{color:'black'}}>{data.name?data.name:''}</Text>
-                        <Text style={{marginLeft:50,color:"red"}}>{data.isConnecting?'连接中...':''}</Text>
-                    </View>
-                    <Text>{data.id}</Text>
+                        <View style={{flexDirection:'row',}}>
+                            <Text style={{color:'black'}}>{data.name?data.name:''}</Text>
+                            <Text style={{marginLeft:50,color:"red"}}>{data.isConnecting?'连接中...':''}</Text>
+                        </View>
+                        <Text>{data.id}</Text>
 
-                </TouchableOpacity>
+                    </TouchableOpacity>
+                </View>
             );
         }
     }
 
     renderHeader=()=>{
         return(
-            <View style={{marginTop:20}}>
+            <View style={{backgroundColor:'white',marginTop:10}}>
                 <TouchableOpacity
                     activeOpacity={0.7}
                     style={[styles.buttonView,{marginHorizontal:10,marginVertical:10,height:40,alignItems:'center'}]}
@@ -421,32 +459,57 @@ export default class BluetoothScreen extends Component{
 
     renderFooter=()=>{
         return(
-            <View style={{marginBottom:30}}>
+            <View style={{marginBottom:30,backgroundColor:'white'}}>
                 {this.state.isConnected?
-                    <View style={{
-                        flex: 1,
-                        justifyContent: 'center',
-                    }}>
+                    <View style={{flex: 1, justifyContent: 'center',}}>
                         <View>
                             <Text>{this.state.isCharging==0?'已充满':'正在充电'}</Text>
                         </View>
-                        {/*<AreaChart*/}
-                            {/*style={{ height: 200, margin:10}}*/}
-                            {/*data={this.state.formData}*/}
-                            {/*contentInset={{ top: 30, bottom: 30 }}*/}
-                            {/*curve={shape.curveNatural}*/}
-                            {/*svg={{ fill: 'rgba(134, 65, 244, 0.8)' }}*/}
-                        {/*>*/}
-                            {/*<Grid />*/}
-                        {/*</AreaChart>*/}
-                        <LineChart
-                            style={{ height:500,margin:10 }}
-                            data={this.state.formData}
-                            svg={{ stroke: 'rgba(134, 65, 244, 0.8)' }}
-                            contentInset={{ top: 30, bottom: 30 }}
-                        >
-                            <Grid />
-                        </LineChart>
+                        <View style={{flex: 1, justifyContent: 'center',}}>
+                            <YAxis
+                                data={this.formDataYAxis}
+                                contentInset={this.contentInset}
+                                svg={{
+                                    fill: 'white',
+                                    fontSize: 10,
+                                }}
+                                numberOfTicks={10}
+                                formatLabel={(value) => `${value} ti/m`}
+                            />
+                            <LineChart
+                                style={{ height:600,margin:10 }}
+                                data={this.state.formData}
+                                svg={{ stroke: 'rgba(134, 65, 244, 0.8)' }}
+                                contentInset={{ top: 30, bottom: 30 }}
+                                // yMax={100000}
+                                // yMin={-100000}
+                            >
+                                <Grid />
+                            </LineChart>
+                        </View>
+
+                        <View style={{flex: 1, justifyContent: 'center',marginTop:20,}}>
+                            <YAxis
+                                data={this.heartRateYAxis}
+                                contentInset={this.contentInset}
+                                svg={{
+                                    fill: 'white',
+                                    fontSize: 10,
+                                }}
+                                numberOfTicks={10}
+                                formatLabel={(value) => `${value} ti/m`}
+                            />
+                            <LineChart
+                                style={{ height:300,margin:10 }}
+                                data={this.state.heartRateData}
+                                svg={{ stroke: 'rgba(134, 65, 244, 0.8)' }}
+                                contentInset={{ top: 30, bottom: 30 }}
+                            >
+                                <Grid />
+                            </LineChart>
+                        </View>
+
+
                         {this.renderReceiveView('通知监听接收的数据：'+`${this.state.isMonitoring?'监听已开启':'监听未开启'}`,`${this.state.isMonitoring?'关闭监听':'开启监听'}`,BluetoothManager.nofityCharacteristicUUID,this.state.isMonitoring?this.disnotify:this.notify,this.state.isMonitoring?'Monitoring':'Not Monitoring')}
                     </View>
 

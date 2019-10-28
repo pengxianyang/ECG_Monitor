@@ -191,7 +191,7 @@ export default class DataBase extends Component {
             }
             this.setState({line_chart_data:temp_line_chart_data});
 
-        }, 1000)
+        }, this.play_rate)
 
     }
 
@@ -323,14 +323,14 @@ export default class DataBase extends Component {
                         </View>
                         <View style={{ flex: 3.5, flexDirection: 'row',paddingLeft:15,paddingRight:10,}}>
                             {/*<YAxis*/}
-                                {/*data={this.data4}*/}
-                                {/*contentInset={this.contentInset}*/}
-                                {/*svg={{*/}
-                                    {/*fill: 'white',*/}
-                                    {/*fontSize: 10,*/}
-                                {/*}}*/}
-                                {/*numberOfTicks={10}*/}
-                                {/*formatLabel={(value) => `${value} ti/m`}*/}
+                            {/*data={this.data4}*/}
+                            {/*contentInset={this.contentInset}*/}
+                            {/*svg={{*/}
+                                {/*fill: 'white',*/}
+                                {/*fontSize: 10,*/}
+                            {/*}}*/}
+                            {/*numberOfTicks={10}*/}
+                            {/*formatLabel={(value) => `${value} ti/m`}*/}
                             {/*/>*/}
                             <View style={{ flex: 1, marginLeft: 16 }}>
                                 <LineChart

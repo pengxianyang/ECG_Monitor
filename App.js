@@ -14,6 +14,7 @@ import {
     TouchableOpacity,
     AppRegistry,
     StatusBar,
+    BackHandler,
 } from 'react-native';
 import {
     createAppContainer
@@ -31,19 +32,67 @@ class HomeScreen extends React.Component {
     constructor(props)
     {
         super(props);
-        this.state
+        this.state={
+            records_number:0,
+            recent_record_number:0,
+        }
 
-    }
-
-    componentDidMount(): void {
-
-    }
-
-    render() {
         const {
             navigation
         } = this.props;
-        const username = navigation.getParam('username', "Peng Xianyang");
+
+        this.url='http://129.211.88.168:8080/data/count/';
+        this.username=navigation.getParam('username', "user");
+        console.disableYellowBox = true;
+
+        this.initialRecordNum();
+
+    }
+
+    componentDidMount() {
+        this.backHandler = BackHandler.addEventListener('hardwareBackPress', this.handleBackPress);
+    }
+
+    componentWillUnmount() {
+        this.backHandler.remove()
+    }
+
+    handleBackPress = () => {
+        if(this.props.navigation.state.routeName==='Home')
+        {
+            return false;
+        }
+        return true;
+    }
+
+
+    initialRecordNum()
+    {
+        console.log('fetching record num');
+        fetch(this.url+'user', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then((response) => {
+                if (response.ok) {
+                    return response.json();
+                }
+            })
+            .then((responseJson) => {
+                console.log('record nums is '+responseJson.count);
+                this.setState({records_number:responseJson.count});
+
+                return responseJson.code;
+            })
+            .catch((error) => {
+                console.log("错误信息为：" + error);
+                console.log('usr: '+this.url+this.username);
+            });
+    }
+
+    render() {
         return (
             <View style={{flex: 1,backgroundColor:'indigo'}}>
                 <StatusBar backgroundColor="#ff0000"
@@ -52,21 +101,23 @@ class HomeScreen extends React.Component {
                            animated={true}/>
                 <View style={{flex: 1, flexDirection:'row'}}>
                     <View style={{flex: 1, backgroundColor: 'indigo',marginLeft:0,marginEnd:10}}>
-                        <Text style={{fontSize:30,color:'gold',marginLeft:10,marginTop:30,fontWeight: 'bold'}}>Hi,{username}</Text>
+                        <Text style={{fontSize:30,color:'gold',marginLeft:10,marginTop:30,fontWeight: 'bold'}}>Hi,{this.username}</Text>
                         <View style={{backgroundColor: 'thistle',marginRight:200,marginTop:10,paddingRight:20,paddingTop:5,paddingBottom:10,borderBottomEndRadius:40,borderTopEndRadius:40,}}>
-                            <Text style={{fontSize:20,marginLeft:10,color:'indigo'}}>{username}</Text>
+                            <Text style={{fontSize:20,marginLeft:10,color:'indigo'}}>{this.username}</Text>
                         </View>
                     </View>
                 </View>
                 <View style={{flex: 1, flexDirection:'row',marginTop:10}}>
                     <View style={{flex: 1, flexDirection:'row',backgroundColor: '#DA70D6AA',marginLeft:10,marginEnd:10,borderRadius:5.0}} >
-                        <View style={{flex:3,backgroundColor:'red',}}>
-                            <Text>RECORD SITUATIONS</Text>
-                            <Text>{'TOTAL '}</Text>
-                            <Text>RECORD SITUATIONS</Text>
+                        <View style={{flex:3,}}>
+                            <View style={{flex:1,marginTop:40,marginStart:20}}>
+                                <Text style={{fontSize:18,color:'white'}}>RECORD SITUATIONS</Text>
+                                <Text style={{fontSize:25,color:'white'}}>{'TOTAL '+this.state.records_number}</Text>
+                                <Text style={{fontSize:10,color:'white'}}>{this.state.recent_record_number+' RECENT MEASUREMENTS'}</Text>
+                            </View>
                         </View>
-                        <View style={{flex:1.5,backgroundColor:'yellow'}}>
-
+                        <View style={{flex:1.5}}>
+                            <Image style={{marginTop:40,height:100,width:100,resizeMode: 'contain',}} source={require('./res/Image/logo_profile.png')}/>
                         </View>
                     </View>
                 </View>
@@ -110,7 +161,7 @@ class HomeScreen extends React.Component {
                             style={{ flex:1, backgroundColor:'fuchsia',margin:5,padding:10,shadowOffset:{width:10,height:10},shadowColor:'black',shadowOpacity:0.25,shadowRadius:3.84,elevation: 5,borderRadius:8.0}}
                             onPress={() => this.props.navigation.navigate('UploadModule',
                                 {
-                                    username:username,
+                                    username:this.username,
                                 })
                             }
                         >

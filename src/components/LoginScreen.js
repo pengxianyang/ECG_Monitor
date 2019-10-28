@@ -30,7 +30,7 @@ export default class LoginScreen extends Component {
     }
 
     _uplodeUserInfromation(username,userpassword){
-        fetch('http://106.54.62.64:8080/login', {
+        fetch('http://129.211.88.168:8080/login', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
