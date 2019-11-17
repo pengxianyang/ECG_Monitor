@@ -1,5 +1,16 @@
 import React, {Component} from 'react';
-import {Alert, FlatList, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {
+    Alert,
+    FlatList,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+    ART,
+    Dimensions, Image,
+} from 'react-native';
 import BleModule from './BleModule';
 import {AreaChart, Grid, LineChart, PieChart, YAxis} from 'react-native-svg-charts';
 import * as shape from 'd3-shape'
@@ -24,8 +35,14 @@ export default class BluetoothScreen extends Component{
             test_data:[50, 10, 40, 95, -4, -24, 85, 91, 35, 53, -53, 24, 50, -20, -80],
             formData:[0,0,0],
             heartRateData:[0,0,0],
+            heartRate:0,
             isCharging:0,
+            path:ART.Path(),
         }
+
+        this.screenWidth = Math.round(Dimensions.get('window').width);
+        this.packageCount=0;
+
         this.bluetoothReceiveData = [];  //蓝牙接收的数据缓存
         this.formDataBuffer = [];
         this.formDataYAxis=[-100000,-5000,0,5000,100000];
@@ -46,11 +63,12 @@ export default class BluetoothScreen extends Component{
         this.filename= 'ECG_record_'+this.date+'.txt';
         this.path = this.RNFS.ExternalStorageDirectoryPath + '/ECG/'+this.filename;
 
-
-
-
         //console.log(path);
         this.writeFile(this.date+'\n',this.path);
+
+
+        //console.log(((255 & 0xFFFFFF)<<8) | (1 & 0xFFFFFF));
+
     }
 
     writeFile(data,path)
@@ -170,91 +188,117 @@ export default class BluetoothScreen extends Component{
         //ios接收到的是小写的16进制，android接收的是大写的16进制，统一转化为大写16进制
         let value = data.value;
 
-        switch(value[2]){
-            case 1:
-                //charing mode v[0]-v[8]
-                //console.log('charging!');
-                if(value[3]==0)
-                    this.setState({isCharging:1});
-                else if(value[3]==1)
-                    this.setState({isCharging:0});
+        // console.log(value);
+        if(value[2]===1&&value[0]===170&&value[1]===170)
+        {
+            console.log(value);
+            //charing mode v[0]-v[8]
+            // console.log('charging!');
+            if(value[3]===0)
+                this.setState({isCharging:1});
+            else if(value[3]===1)
+                this.setState({isCharging:0});
 
-                let uint16=(value[4] << 8) | value[5];
-                console.log("charging state is: "+value[3]+" ADC reading: "+uint16);
-                break;
-            case 2:
-                //running mode v[0]-v[19] * 2
-                //console.log('receive running package');
-                for(let i=3;i<19;i+=2)
+            let uint16=(value[4] << 8) | value[5];
+            //console.log("charging state is: "+value[3]+" ADC reading: "+uint16+' package size is '+value.length);
+        }
+        else if(value[2]===2&&value[0]===170&&value[1]===170)
+        {
+            //running mode v[0]-v[19] * 2
+            //console.log('receive running package '+value.length);
+            for(let i=3;i<19;i+=2)
+            {
+                //let uint16=(value[i] << 8) + value[i+1];
+                let uint16=(((value[i] & 0xFFFFFF) << 8) | (value[i+1] & 0xFFFFFF));
+                if(uint16!==undefined)
                 {
-                    //let uint16=(value[i] << 8) + value[i+1];
-                    let uint16=(((value[i] & 0xFF) << 8) | (value[i+1] & 0xFF));
-                    if(uint16!=undefined)
-                    {
-                        // this.formDataBuffer.push(uint16);
-                        // this.writeBuffer+=(uint16+' ');
-                        this.packageWriteBuffer+=(uint16+' ');
-                        this.packageFromBuffer.push(uint16);
-                    }
+                    // this.formDataBuffer.push(uint16);
+                    // this.writeBuffer+=(uint16+' ');
+                    if(uint16>50000)
+                        uint16=(uint16-65280)+300;
+                    else
+                        uint16+=300;
+                    this.packageWriteBuffer+=(uint16+' ');
+                    this.packageFromBuffer.push(uint16);
                 }
-                this.breakDigit=value[19];
-                //this.packageFromBuffer.push((value[19] & 0xFF) << 8);
+            }
+            this.breakDigit=value[19];
+            //this.packageFromBuffer.push((value[19] & 0xFF) << 8);
+        }
+        else if(value[2]===3&&value[0]===170&&value[1]===170)
+        {
+            //battery package v[0]-v[19]
 
-                break;
-            case 3:
-                //battery package v[0]-v[19]
+            if(value[6]<100)
+                this.signalQulity=false;
+            else
+                this.signalQulity=true;
 
-                if(value[6]<100)
-                    this.signalQulity=false;
-                else
-                    this.signalQulity=true;
+            let batt=(value[3] << 8) | value[4];
+            //console.log("heart rate: "+value[5]+" signal quality: "+value[6]+"battery: "+batt);
 
-                let batt=(value[3] << 8) | value[4];
-                console.log("heart rate: "+value[5]+" signal quality: "+value[6]+"battery: "+batt);
+            if(this.signalQulity)
+            {
+                this.heartRateBuffer.push(value[5]);
+                this.setState({
+                    heartRateData:this.heartRateBuffer,
+                    heartRate:this.heartRateBuffer[this.heartRateBuffer.length-1],
+                });
+            }
+        }
+        else if(value[0]!==170&&value[1]!==170)
+        {
+            let t=(((this.breakDigit & 0xFFFFFF) << 8) | (value[0] & 0xFFFFFF));
+            if(t>50000)
+                t=(t-65280)+300;
+            else
+                t+=300;
+            this.packageWriteBuffer+=(t+' ');
+            this.packageFromBuffer.push(t);
 
-                if(this.signalQulity==true)
+            for(let i=1;i<15;i+=2)
+            {
+                //let uint16=(value[i] << 8) + value[i+1];
+                let uint16=(((value[i] & 0xFFFFFF) << 8) | (value[i+1] & 0xFFFFFF));
+                if(uint16!==undefined)
                 {
-                    this.heartRateBuffer.push(value[5]);
-                    this.setState({heartRateData:this.heartRateBuffer});
+                    // this.formDataBuffer.push(uint16);
+                    // this.writeBuffer+=(uint16+' ');
+                    if(uint16>50000)
+                        uint16=(uint16-65280)+300;
+                    else
+                        uint16+=300;
+                    this.packageWriteBuffer+=(uint16+' ');
+                    this.packageFromBuffer.push(uint16);
                 }
+            }
 
-                break;
-            default:
-                let t=(((this.breakDigit & 0xFF) << 8) | (value[0] & 0xFF))
-                this.packageWriteBuffer+=(t+' ');
-                this.packageFromBuffer.push(t);
-                for(let i=1;i<15;i+=2)
-                {
-                    //let uint16=(value[i] << 8) + value[i+1];
-                    let uint16=(((value[i] & 0xFF) << 8) | (value[i+1] & 0xFF));
-                    if(uint16!=undefined)
-                    {
-                        // this.formDataBuffer.push(uint16);
-                        // this.writeBuffer+=(uint16+' ');
-                        this.packageWriteBuffer+=(uint16+' ');
-                        this.packageFromBuffer.push(uint16);
-                    }
-                }
+            //check error
+            if(value[15]===0&&value[16]===0&&this.signalQulity)
+            {
+                this.packageCount++;
+                //this.vaildDataNum++;
+                //console.log('no error '+this.formDataBuffer.length+" "+this.writeBuffer.length+" "+this.packageFromBuffer.length);
+                this.formDataBuffer.push.apply(this.formDataBuffer, this.packageFromBuffer);
+                this.writeBuffer+=this.packageWriteBuffer;
+            }
 
-                //check error
-                if(value[15]==0&&value[16]==0&&this.signalQulity==true)
-                {
-                    //this.vaildDataNum++;
-                    //console.log('no error '+this.formDataBuffer.length+" "+this.writeBuffer.length+" "+this.packageFromBuffer.length);
-                    this.formDataBuffer.push.apply(this.formDataBuffer, this.packageFromBuffer);
-                    this.writeBuffer+=this.packageWriteBuffer;
-                }
-
-                this.packageWriteBuffer="";
-                this.packageFromBuffer=[];
+            this.packageWriteBuffer="";
+            this.packageFromBuffer=[];
         }
 
-        if(this.formDataBuffer.length>1000)
+        if(this.packageCount%4===0)
         {
-            this.setState({formData:this.formDataBuffer});
-            this.formDataBuffer=[];
+            this.addPoint();
+            this.packageCount=0;
+        }
+
+        if(this.formDataBuffer.length>this.screenWidth*5)
+        {
+            //this.clearSurface();
             //console.log('this file\'s length is '+this.writeBuffer.length);
             this.appendFile(this.writeBuffer,this.path);
+            this.formDataBuffer=[];
         }
 
         if(this.heartRateBuffer.length>60)
@@ -263,6 +307,25 @@ export default class BluetoothScreen extends Component{
             this.setState({heartRateData:this.heartRateBuffer});
         }
 
+    }
+
+    addPoint()
+    {
+        let tpath=new ART.Path();
+        tpath.moveTo(0,0);
+        for(let i=0;i<this.formDataBuffer.length;i++)
+        {
+            tpath.lineTo(i/5, this.formDataBuffer[i]/60+100)
+                .moveTo(i/5, this.formDataBuffer[i]/60+100);
+        }
+
+        this.setState({path:tpath});
+    }
+
+    clearSurface()
+    {
+        let tpath=new ART.Path();
+        this.setState({path:tpath});
     }
 
     connect(item){
@@ -418,22 +481,36 @@ export default class BluetoothScreen extends Component{
 
     renderItem=(item)=>{
         let data = item.item;
+        const display = this.state.isConnected ? "none" : "flex";
         if(!data.name) return null;
         else {
             return(
-                <View style={{backgroundColor:'white'}}>
+                <View style={{backgroundColor:'indigo'}}>
+
                     <TouchableOpacity
-                        activeOpacity={0.7}
+                        style={[{display},{ flex:1, backgroundColor:'plum',margin:5,shadowOffset:{width:10,height:10},shadowColor:'black',shadowOpacity:0.25,shadowRadius:3.84,elevation: 5,borderRadius:8.0}]}
+                        onPress={()=>{
+                            this.connect(item)
+                        }}
                         disabled={this.state.isConnected?true:false}
-                        onPress={()=>{this.connect(item)}}
-                        style={styles.item}>
-
-                        <View style={{flexDirection:'row',}}>
-                            <Text style={{color:'black'}}>{data.name?data.name:''}</Text>
-                            <Text style={{marginLeft:50,color:"red"}}>{data.isConnecting?'连接中...':''}</Text>
+                    >
+                        <View style={{flex:1,flexDirection:'row',padding:10,backgroundColor:'blueviolet'}}>
+                            <Text style={{fontSize:15,color:'white',marginTop:0}}>{data.name?data.name:''}</Text>
                         </View>
-                        <Text>{data.id}</Text>
-
+                        <View style={{flex:1,flexDirection:'row',padding:10}}>
+                            <View style={{flex:1}}>
+                                <Image style={{height:60,width:60,resizeMode: 'contain',}} source={require('../../res/Image/logo_device.png')}/>
+                            </View>
+                            <View style={{flex:5,marginStart:10}}>
+                                <View style={{flex:1}}>
+                                    <Text style={{fontSize:16,color:'white',marginTop:0}}>{'MAC Address:'}</Text>
+                                </View>
+                                <View style={{flex:1 , flexDirection:'row'}}>
+                                    <Text style={{fontSize:16,color:'white',marginTop:0,}}>{data.id}</Text>
+                                    <Text style={{fontSize:16,color:'red',marginTop:0,marginStart:20}}>{data.isConnecting?'Connecting':''}</Text>
+                                </View>
+                            </View>
+                        </View>
                     </TouchableOpacity>
                 </View>
             );
@@ -442,77 +519,67 @@ export default class BluetoothScreen extends Component{
 
     renderHeader=()=>{
         return(
-            <View style={{backgroundColor:'white',marginTop:10}}>
+            <View style={{backgroundColor:'indigo`',marginTop:10}}>
                 <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={[styles.buttonView,{marginHorizontal:10,marginVertical:10,height:40,alignItems:'center'}]}
-                    onPress={this.state.isConnected?this.disconnect.bind(this):this.scan.bind(this)}>
-                    <Text style={styles.buttonText}>{this.state.scaning?'正在搜索中':this.state.isConnected?'断开蓝牙':'搜索蓝牙'}</Text>
+                    style={{ height:50, backgroundColor:'plum',marginStart:30,marginRight:30,marginTop:10,marginBottom:10,padding:3,shadowOffset:{width:10,height:10},shadowColor:'black',shadowOpacity:0.25,shadowRadius:3.84,elevation: 5,borderRadius:8.0}}
+                    onPress={this.state.isConnected?this.disconnect.bind(this):this.scan.bind(this)}
+                >
+                    <View style={{flex:1,flexDirection:'row'}}>
+                        <Text style={{flex:1,fontSize:20,color:'white',marginTop:0,textAlign:'center',  textAlignVertical:'center',}}>{this.state.scaning?'SEARCHING':this.state.isConnected?'DISCONNECT':'SEARCH DEVICE'}</Text>
+                    </View>
                 </TouchableOpacity>
-
-                <Text style={{marginLeft:10,marginTop:10}}>
-                    {this.state.isConnected?'当前连接的设备':'可用设备'}
-                </Text>
             </View>
         )
     }
 
     renderFooter=()=>{
+        let index=-1;
+        BluetoothManager.nofityCharacteristicUUID.map((item,tindex)=>{index=tindex});
+
         return(
-            <View style={{marginBottom:30,backgroundColor:'white'}}>
+            <View style={{marginBottom:30,backgroundColor:'white',}}>
                 {this.state.isConnected?
-                    <View style={{flex: 1, justifyContent: 'center',}}>
-                        <View>
-                            <Text>{this.state.isCharging==0?'已充满':'正在充电'}</Text>
-                        </View>
-                        <View style={{flex: 1, justifyContent: 'center',}}>
-                            <YAxis
-                                data={this.formDataYAxis}
-                                contentInset={this.contentInset}
-                                svg={{
-                                    fill: 'white',
-                                    fontSize: 10,
-                                }}
-                                numberOfTicks={10}
-                                formatLabel={(value) => `${value} ti/m`}
-                            />
-                            <LineChart
-                                style={{ height:600,margin:10 }}
-                                data={this.state.formData}
-                                svg={{ stroke: 'rgba(134, 65, 244, 0.8)' }}
-                                contentInset={{ top: 30, bottom: 30 }}
-                                // yMax={100000}
-                                // yMin={-100000}
-                            >
-                                <Grid />
-                            </LineChart>
-                        </View>
+                    <View style={{flex: 1}}>
+                        <View style={{backgroundColor:'indigo'}}>
 
-                        <View style={{flex: 1, justifyContent: 'center',marginTop:20,}}>
-                            <YAxis
-                                data={this.heartRateYAxis}
-                                contentInset={this.contentInset}
-                                svg={{
-                                    fill: 'white',
-                                    fontSize: 10,
-                                }}
-                                numberOfTicks={10}
-                                formatLabel={(value) => `${value} ti/m`}
-                            />
-                            <LineChart
-                                style={{ height:300,margin:10 }}
-                                data={this.state.heartRateData}
-                                svg={{ stroke: 'rgba(134, 65, 244, 0.8)' }}
-                                contentInset={{ top: 30, bottom: 30 }}
-                            >
-                                <Grid />
-                            </LineChart>
+                            <View style={{height:160,backgroundColor:'indigo'}}>
+                                <View style={{height:100,backgroundColor:'indigo',flexDirection:'row',justifyContent:'center',}}>
+                                    <View style={{height:100}}>
+                                        <Image style={{height:60,width:60,resizeMode: 'contain',marginTop:20,}} source={require('../../res/Image/logo_ECG.png')}/>
+                                    </View>
+                                    <Text style={{height:100,color:'white',textAlign:'center',marginTop:15,marginStart:10,fontSize:55,fontWeight: 'bold'}}>{this.state.heartRate}</Text>
+                                    <Text style={{height:100,color:'white',textAlign:'center',marginTop:50,marginStart:10,fontSize:20,fontWeight: 'bold'}}>BPM Average</Text>
+                                </View>
+                                <View style={{height:60,backgroundColor:'indigo',flexDirection:'row',justifyContent:'center',}}>
+                                    <View style={{height:60}}>
+                                        <Image style={{height:40,width:40,resizeMode: 'contain',marginTop:10,}} source={require('../../res/Image/logo_battery.png')}/>
+                                    </View>
+                                    <Text style={{height:60,color:'white',textAlign:'center',marginTop:18,marginStart:10,fontSize:18,fontWeight: 'bold'}}>100%</Text>
+                                    <View style={{height:60,marginStart:40}}>
+                                        <Image style={{height:40,width:40,resizeMode: 'contain',marginTop:10,}} source={require('../../res/Image/logo_ECG_signal.png')}/>
+                                    </View>
+                                    <Text style={{height:60,color:'white',textAlign:'center',marginTop:18,marginStart:10,fontSize:18,fontWeight: 'bold'}}>{this.signalQulity?'GOOD':"BAD"}</Text>
+                                </View>
+                            </View>
+
+                            <View style={{backgroundColor:'indigo'}}>
+                                <TouchableOpacity
+                                    style={{ height:50,backgroundColor:'orange',marginStart:30,marginRight:30,marginTop:10,marginBottom:10,padding:3,shadowOffset:{width:10,height:10},shadowColor:'black',shadowOpacity:0.25,shadowRadius:3.84,elevation: 5,borderRadius:8.0}}
+                                    onPress={()=>this.state.isMonitoring?this.disnotify(index):this.notify(index)}
+                                >
+                                    <View style={{flex:1,flexDirection:'row'}}>
+                                        <Text style={{flex:1,fontSize:20,color:'white',marginTop:0,textAlign:'center',  textAlignVertical:'center',}}>{this.state.isMonitoring?'STOP':'START'}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            </View>
+
                         </View>
-
-
-                        {this.renderReceiveView('通知监听接收的数据：'+`${this.state.isMonitoring?'监听已开启':'监听未开启'}`,`${this.state.isMonitoring?'关闭监听':'开启监听'}`,BluetoothManager.nofityCharacteristicUUID,this.state.isMonitoring?this.disnotify:this.notify,this.state.isMonitoring?'Monitoring':'Not Monitoring')}
+                        <View style={{backgroundColor:'indigo'}}>
+                            <ART.Surface width={this.screenWidth} height={500}>
+                                <ART.Shape d={this.state.path} stroke="#7CFC00" strokeWidth={2} />
+                            </ART.Surface>
+                        </View>
                     </View>
-
                     :
                     <View></View>
                 }
@@ -549,7 +616,7 @@ export default class BluetoothScreen extends Component{
     render () {
 
         return (
-            <View style={styles.container}>
+            <View style={{flex:1,backgroundColor:'indigo'}}>
                 <FlatList
                     renderItem={this.renderItem}
                     ListHeaderComponent={this.renderHeader}

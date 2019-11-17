@@ -21,12 +21,12 @@ export default class LoginScreen extends Component {
 
     _onChangeUserName(username) {
         this.setState({username:username});
-        console.log(this.state.username);
+        //console.log(this.state.username);
     }
 
     _onChangePassword(password) {
         this.setState({userpassword:password});
-        console.log(this.state.userpassword);
+        //console.log(this.state.userpassword);
     }
 
     _uplodeUserInfromation(username,userpassword){

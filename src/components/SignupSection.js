@@ -7,8 +7,8 @@ export default class SignupSection extends Component {
   render() {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Create Account</Text>
-        <Text style={styles.text}>Forgot Password?</Text>
+        <Text style={styles.text} onPress={()=>{}}>Create Account</Text>
+        <Text style={styles.text} onPress={()=>{}}>Forgot Password?</Text>
       </View>
     );
   }

@@ -167,7 +167,7 @@ class HomeScreen extends React.Component {
                         >
                             <View style={{flex:1,}}>
                                 <Image style={{height:60,width:60,resizeMode: 'contain',}} source={require('./res/Image/logo_uplord.png')}/>
-                                <Text style={{fontSize:20,color:'white',marginTop:30}}>Uplord</Text>
+                                <Text style={{fontSize:20,color:'white',marginTop:30}}>Upload</Text>
                             </View>
                         </TouchableOpacity>
                     </View>
@@ -332,7 +332,12 @@ const AppNavigator = createStackNavigator({
         navigationOptions:{
             headerTitle:'BLE Module',
             headerStyle:{
-            }
+                backgroundColor: 'indigo',
+            },
+            headerTintColor:'white',
+            headerTitleStyle: {
+                fontWeight: 'bold',
+            },
         }
     },
     Login:{
